@@ -1,0 +1,71 @@
+---
+title: "R Notebook for Kaggle Competition: Toxic Comment Classification Challenge"
+output: html_notebook
+---
+
+Loading train/test files:
+
+```{r}
+setwd("C:/Users/gabri/Desktop/kaggle/train.csv")
+train <- read.csv("train.csv")
+setwd("C:/Users/gabri/Desktop/kaggle/test.csv")
+test <- read.csv("test.csv")
+```
+
+Transforming invalid charaters to valid (utf-8):
+```{r}
+train$comment_text<-as.character(train$comment_text)
+train$comment_text <- sapply(train$comment_text, function(x) iconv(enc2utf8(x), sub = "byte"))
+```
+
+
+Loading packages to manipulate data:
+
+```{r}
+library(tm)
+library(SnowballC)
+```
+Creating corpus, converting to lower-case, removing ponctuations, removing numbers:
+
+```{r}
+corpus <- VCorpus(VectorSource(train$comment_text))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+```
+
+Removing stopwords, stemming
+```{r}
+corpus <- tm_map(corpus, removeWords, c(stopwords("english")))
+corpus <- tm_map(corpus, stemDocument)
+```
+
+Creating Term Matrix, removing sparse terms, converting to data frame:
+```{r}
+frequencies = DocumentTermMatrix(corpus)
+sparse = removeSparseTerms(frequencies, 0.995)
+trainSparse <- as.data.frame(as.matrix(sparse))
+colnames(trainSparse) <- make.names(colnames(trainSparse))
+```
+
+Add dependent variables:
+```{r}
+trainSparse$toxic <- train$toxic
+#trainSparse$severe_toxic <- train$severe_toxic
+#trainSparse$obscene <- train$obscene
+#trainSparse$threat <- train$threat
+#trainSparse$insult <- train$insult
+#trainSparse$identity_hate <- train$identity_hate
+```
+
+Build a CART model, evaluate performance w/ train data, compute accuracy:
+```{r}
+CART <- rpart(toxic ~., data=trainSparse, method="class")
+predictCART <- predict(CART, newdata=trainSparse, type="class")
+res <-  table(trainSparse$toxic, predictCART)
+accuracy <- (res[1]+res[4])/(sum(res))
+accuracy
+```
+
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).

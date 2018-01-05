@@ -1,0 +1,152 @@
+---
+title: "R Notebook for Kaggle Competition: Toxic Comment Classification Challenge"
+output: html_notebook
+---
+
+Loading train/test files:
+
+```{r}
+setwd("C:/Users/gabri/Desktop/kaggle/train.csv")
+train <- read.csv("train.csv")
+setwd("C:/Users/gabri/Desktop/kaggle/test.csv")
+test <- read.csv("test.csv")
+```
+
+Transforming invalid charaters to valid (utf-8):
+```{r}
+train$comment_text<-as.character(train$comment_text)
+train$comment_text <- sapply(train$comment_text, function(x) iconv(enc2utf8(x), sub = "byte"))
+```
+
+
+Loading packages to manipulate data:
+
+```{r}
+library(tm)
+library(SnowballC)
+```
+Creating corpus, converting to lower-case, removing ponctuations, removing numbers:
+
+```{r}
+corpus <- VCorpus(VectorSource(train$comment_text))
+corpus <- tm_map(corpus, content_transformer(tolower))
+corpus <- tm_map(corpus, removePunctuation)
+corpus <- tm_map(corpus, removeNumbers)
+```
+
+Removing stopwords, stemming
+```{r}
+corpus <- tm_map(corpus, removeWords, c(stopwords("english")))
+corpus <- tm_map(corpus, stemDocument)
+```
+
+Creating Term Matrix, removing sparse terms, converting to data frame:
+```{r}
+frequencies = DocumentTermMatrix(corpus)
+sparse = removeSparseTerms(frequencies, 0.995)
+trainSparse <- as.data.frame(as.matrix(sparse))
+colnames(trainSparse) <- make.names(colnames(trainSparse))
+```
+
+Add dependent variables:
+```{r}
+trainSparse$toxic <- train$toxic
+#trainSparse$severe_toxic <- train$severe_toxic
+#trainSparse$obscene <- train$obscene
+#trainSparse$threat <- train$threat
+#trainSparse$insult <- train$insult
+#trainSparse$identity_hate <- train$identity_hate
+```
+
+Trying to do some CV:
+
+Tree for toxic:
+
+```{r}
+library(caret)
+library(rpart)
+library(rpart.plot)
+
+traint <- rpart(toxic~., data=trainSparse, method='class', cp=0.00008, xval=15)
+
+predictcv <- predict(traint, newdata=trainSparse, type="class")
+t <- table(trainSparse$toxic, predictcv)
+(t[1,1] + t[2,2])/(t[1,1] + t[2,2] + t[1,2] + t[2,1])
+```
+
+Tree for severe_toxic:
+
+```{r}
+trainSparse$severe_toxic <- train$severe_toxic
+#trainSparse$obscene <- train$obscene
+#trainSparse$threat <- train$threat
+#trainSparse$insult <- train$insult
+#trainSparse$identity_hate <- train$identity_hate
+```
+```{r}
+trainst <- rpart(severe_toxic~., data=trainSparse, method='class', cp=0.00008)
+
+predictcvst <- predict(trainst, newdata=trainSparse, type="class")
+tst <- table(trainSparse$severe_toxic, predictcvst)
+(tst[1,1] + tst[2,2])/(tst[1,1] + tst[2,2] + tst[1,2] + tst[2,1])
+
+```
+
+Tree for obscene:
+
+```{r}
+trainSparse$obscene <- train$obscene
+#trainSparse$threat <- train$threat
+#trainSparse$insult <- train$insult
+#trainSparse$identity_hate <- train$identity_hate
+```
+```{r}
+traino <- rpart(obscene~., data=trainSparse, method='class', cp=0.00008)
+
+predictcvo <- predict(traino, newdata=trainSparse, type="class")
+to <- table(trainSparse$obscene, predictcvo)
+(to[1,1] + to[2,2])/(to[1,1] + to[2,2] + to[1,2] + to[2,1])
+```
+
+Tree for threat:
+
+```{r}
+trainSparse$threat <- train$threat
+#trainSparse$insult <- train$insult
+#trainSparse$identity_hate <- train$identity_hate
+```
+```{r}
+trainth <- rpart(threat~., data=trainSparse, method='class', cp=0.00008)
+
+predictcvth <- predict(trainth, newdata=trainSparse, type="class")
+tth <- table(trainSparse$threat, predictcvth)
+(tth[1,1] + tth[2,2])/(tth[1,1] + tth[2,2] + tth[1,2] + tth[2,1])
+```
+
+Tree for insult:
+
+```{r}
+trainSparse$insult <- train$insult
+#trainSparse$identity_hate <- train$identity_hate
+```
+```{r}
+traini <- rpart(insult~., data=trainSparse, method='class', cp=0.00008)
+
+predictcvi <- predict(traini, newdata=trainSparse, type="class")
+ti <- table(trainSparse$insult, predictcvi)
+(ti[1,1] + ti[2,2])/(ti[1,1] + ti[2,2] + ti[1,2] + ti[2,1])
+```
+
+Tree for identity_hate:
+
+```{r}
+trainSparse$identity_hate <- train$identity_hate
+```
+```{r}
+trainih <- rpart(identity_hate~., data=trainSparse, method='class', cp=0.00008)
+
+predictcvih <- predict(trainih, newdata=trainSparse, type="class")
+tih <- table(trainSparse$identity_hate, predictcvih)
+(tih[1,1] + tih[2,2])/(tih[1,1] + tih[2,2] + tih[1,2] + tih[2,1])
+```
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
